@@ -1,8 +1,10 @@
 # XUnity-AutoTranslator-SugoiOfflineTranslatorEndpoint
 
+Forked from https://github.com/Vin-meido/XUnity-AutoTranslator-SugoiOfflineTranslatorEndpoint.
+
 Translation endpoint to support Sugoi Translator's offline translation backend (https://www.youtube.com/watch?v=r8xFzVbmo7k)
 
-Tested to support Sugoi Translation Toolkit V4.0.
+Tested to support Sugoi Translation Toolkit versions up to v9.x
 
 The Sugoi Translator's offline model boasts comparability with Deepl translations, not to mention shorter translation delay and nonexistent throttling limits.
 
