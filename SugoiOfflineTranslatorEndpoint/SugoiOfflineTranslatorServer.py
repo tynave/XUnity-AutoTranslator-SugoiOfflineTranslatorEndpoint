@@ -1,9 +1,25 @@
+
 import os
 import sys
+import io
+import threading
+import ctypes
+import subprocess
+
+# Set UTF-8 encoding for stdout and stderr
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 fairseq_install_path = os.path.join(os.getcwd(), 'fairseq')
-sys.path.insert(0, fairseq_install_path)
-sys.stdout.reconfigure(encoding='utf-8')
+if os.path.exists(fairseq_install_path) and os.path.isdir(fairseq_install_path):
+    sys.path.insert(0, fairseq_install_path)
+    sys.stdout.reconfigure(encoding='utf-8')
+
+    # Only import if the fairseq path is valid
+    from fairseq.models.transformer import TransformerModel
+else:
+    TransformerModel = None
+
 
 from flask import Flask
 from flask import request
@@ -17,9 +33,6 @@ import argparse
 from functools import lru_cache
 from logging import getLogger
 from logging.config import dictConfig
-
-from fairseq.models.transformer import TransformerModel
-
 
 dictConfig({
     'version': 1,
@@ -40,6 +53,40 @@ dictConfig({
 
 LOG = getLogger("root")
 
+def minimize_window():
+    SW_MINIMIZE = 6
+    kernel32 = ctypes.windll.kernel32
+    user32 = ctypes.windll.user32
+    window_handle = kernel32.GetConsoleWindow()
+
+    if window_handle:
+        user32.ShowWindow(window_handle, SW_MINIMIZE)
+    else:
+        print("Window handle not found. This script may not be running in a console window.")
+
+def send_ctrl_c_to_self():
+    ctypes.windll.kernel32.AttachConsole(-1)  
+    ctypes.windll.kernel32.GenerateConsoleCtrlEvent(0, 0) 
+
+def check_process_exists(ppid):
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {ppid}"],
+            capture_output=True,
+            text=True
+        )
+        return str(ppid) in result.stdout
+    except subprocess.SubprocessError as e:
+        LOG.error(f"Error checking process existence: {e}")
+        return False
+
+def monitor_parent_process(ppid):
+    while True:
+        if not check_process_exists(ppid):
+            LOG.info("Parent process has terminated. Sending Ctrl+C to self...")
+            send_ctrl_c_to_self()
+            return
+        time.sleep(1)
 
 class TranslateBackendBase:
     def translate(self, s):
@@ -48,7 +95,23 @@ class TranslateBackendBase:
 
 class FairseqTranslateBackend(TranslateBackendBase):
     def __init__(self, settings):
-        LOG.info("Setting up fairseq translation backend")
+        LOG.info("Setting up fairseq translation backend..")
+
+        # Add logging to verify the values of the paths
+        LOG.info(f"Fairseq data dir: {settings.fairseq_data_dir}")
+        LOG.info(f"Fairseq model file: {settings.fairseq_model}")
+
+        # Check for None values in the paths and raise an error if found
+        if settings.fairseq_data_dir is None or settings.fairseq_model is None:
+            raise ValueError("fairseq_data_dir and fairseq_model must be valid paths, not None.")
+        # Check if model data dir exists
+        if not os.path.exists(settings.fairseq_data_dir):
+            raise FileNotFoundError(f"Data directory does not exist: {settings.fairseq_data_dir}")
+        # Check if model file exists
+        model_file_path = os.path.join(settings.fairseq_data_dir, settings.fairseq_model)
+        if not os.path.exists(model_file_path):
+            raise FileNotFoundError(f"Model file does not exist: {model_file_path}")
+
         self.transformer = TransformerModel.from_pretrained(
             settings.fairseq_data_dir,
             checkpoint_file=settings.fairseq_model,
@@ -61,7 +124,7 @@ class FairseqTranslateBackend(TranslateBackendBase):
         )
         
         if settings.cuda:
-            LOG.info("Enabling cuda")
+            LOG.info("CUDA Enabled!")
             self.transformer.cuda()
 
     def translate(self, s):
@@ -70,28 +133,70 @@ class FairseqTranslateBackend(TranslateBackendBase):
 
 class Ctranslate2TranslateBackend(TranslateBackendBase):
     def __init__(self, settings):
-        LOG.info("Setting up ctranslate2 translation backend")
+        LOG.info("Setting up ctranslate2 translation backend..")
         import sentencepiece as spm
         import ctranslate2
 
-        self.source_spm = spm.SentencePieceProcessor("./ct2/spmModels/spm.ja.nopretok.model")
-        self.target_spm = spm.SentencePieceProcessor("./ct2/spmModels/spm.en.nopretok.model")
+        LOG.info(f"CTranslate2 data dir:{settings.ctranslate2_data_dir}")
 
+        # Helper function to find a valid model path
+        def get_valid_model_path(*paths):
+            for path in paths:
+                if os.path.exists(path):
+                    return path
+            LOG.warning(f"None of the specified paths exist: {paths}. CT2 model not installed.")
+            return None
+
+        # Use the function to determine the valid paths for source and target models
+        source_model_path = get_valid_model_path(
+            "./ct2/spmModels/spm.ja.nopretok.model",
+            "./models/spmModels/spm.ja.nopretok.model"
+        )
+
+        target_model_path = get_valid_model_path(
+            "./ct2/spmModels/spm.en.nopretok.model",
+            "./models/spmModels/spm.en.nopretok.model"
+        )
+
+        # Initialize SentencePieceProcessor only if valid paths are found
+        if source_model_path and target_model_path:
+            self.source_spm = spm.SentencePieceProcessor(source_model_path)
+            self.target_spm = spm.SentencePieceProcessor(target_model_path)
+            LOG.info(f"Source spm model file: {source_model_path}")
+            LOG.info(f"Target spm model file: {target_model_path}")
+        else:
+            self.source_spm = None
+            self.target_spm = None
+            LOG.warning("Translation models were not initialized because valid paths were not found.")
+
+        # Set up the translator
         device = "cuda" if settings.cuda else "cpu"
         self.translator = ctranslate2.Translator(
             model_path=settings.ctranslate2_data_dir,
-            device=device)
+            device=device
+        )
+
+        # Log a message if CUDA is enabled
+        if device == "cuda":
+            LOG.info("CT2 translation device: GPU (CUDA enabled)")
+        else:
+            LOG.info("CT2 translation device: CPU")
 
     def translate(self, s):
+        # Ensure that the SentencePieceProcessor is initialized before attempting to translate
+        if not self.source_spm or not self.target_spm:
+            LOG.error("Translation cannot proceed as the SentencePiece models were not loaded.")
+            return s
+
         line = self.source_spm.encode(s, out_type=str)
         LOG.info(f'translating: {line}')
         results = self.translator.translate_batch(
             [line],
             beam_size=5,
             num_hypotheses=1,
-            no_repeat_ngram_size=3)
+            no_repeat_ngram_size=3
+        )
         return self.target_spm.decode(results[0].hypotheses)[0]
-
 
 ja2en = None
 
@@ -241,39 +346,68 @@ def add_double_quote(data, isBracket):
 
 
 def parse_commandline_args():
+    # Helper function to get the valid directory path
+    def get_valid_data_dir(*paths):
+        for path in paths:
+            if os.path.exists(path) and os.path.isdir(path):
+                return path
+        LOG.warning(f"None of the specified paths exist: {paths}. CT2 model not installed.")
+        return None
+
+    # Check for valid ctranslate2 data directory
+    ctranslate2_data_dir = get_valid_data_dir(
+        "./ct2/ct2_models/",
+        "./models/ct2Model/"
+    )
+
+    # Set up the argument parser
     parser = argparse.ArgumentParser(description="SugoiOfflineTranslator backend server")
-    parser.add_argument('port', type=int,
-                        help="The port to listen to")
+    parser.add_argument('port', type=int, help="The port to listen to")
     parser.add_argument('--fairseq-data-dir', type=str, default="./fairseq/japaneseModel/",
-                        help="directory containing the fairseq pretrained models and related files")
+                        help="Directory containing the fairseq pretrained models and related files")
     parser.add_argument('--fairseq-model', type=str, default="big.pretrain.pt",
                         help="Name of the pretrained model to use")
     parser.add_argument('--cuda', action="store_true",
                         help="Run translations on the GPU via CUDA")
     parser.add_argument('--ctranslate2', action="store_true",
                         help="Enables the use of ctranslate2 instead of fairseq")
-    parser.add_argument('--ctranslate2-data-dir', type=str, default="./ct2/ct2_models/",
+    parser.add_argument('--ctranslate2-data-dir', type=str, default=ctranslate2_data_dir,
                         help="Directory to use for ctranslate2 model")
+    parser.add_argument('--minimize', action="store_true", help="Minimize the window at startup")
 
     return parser.parse_args()
-
 
 def main():
     global ja2en
 
-    args = parse_commandline_args()
+    try:
+        args = parse_commandline_args()
 
-    # monkey patch cli banner
-    from flask import cli
-    cli.show_server_banner = lambda *_: None
+        if args.minimize:
+            minimize_window()
 
-    if not args.ctranslate2:
-        ja2en = FairseqTranslateBackend(args)
-    else:
-        ja2en = Ctranslate2TranslateBackend(args)
+        from flask import cli
+        cli.show_server_banner = lambda *_: None
 
-    LOG.info(f"Running server on port {args.port}")
-    app.run(host='127.0.0.1', port=args.port)
+        parent_process_id = os.getppid()
+        LOG.info(f"Monitoring parent process ID: {parent_process_id}")
+
+        monitor_thread = threading.Thread(target=monitor_parent_process, args=(parent_process_id,), daemon=True)
+        monitor_thread.start()
+
+        if not args.ctranslate2:
+            ja2en = FairseqTranslateBackend(args)
+        else:
+            ja2en = Ctranslate2TranslateBackend(args)
+
+        LOG.info(f"Running server on port {args.port}")
+        
+        app.run(host='127.0.0.1', port=args.port)
+    
+    except ValueError as e:
+        LOG.error(f"Initialization error: {e}")
+    except Exception as e:
+        LOG.exception(f"An unexpected error occurred: {e}")
 
 
 if __name__ == "__main__":
