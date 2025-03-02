@@ -64,30 +64,6 @@ def minimize_window():
     else:
         print("Window handle not found. This script may not be running in a console window.")
 
-def send_ctrl_c_to_self():
-    ctypes.windll.kernel32.AttachConsole(-1)  
-    ctypes.windll.kernel32.GenerateConsoleCtrlEvent(0, 0) 
-
-def check_process_exists(ppid):
-    try:
-        result = subprocess.run(
-            ["tasklist", "/FI", f"PID eq {ppid}"],
-            capture_output=True,
-            text=True
-        )
-        return str(ppid) in result.stdout
-    except subprocess.SubprocessError as e:
-        LOG.error(f"Error checking process existence: {e}")
-        return False
-
-def monitor_parent_process(ppid):
-    while True:
-        if not check_process_exists(ppid):
-            LOG.info("Parent process has terminated. Sending Ctrl+C to self...")
-            send_ctrl_c_to_self()
-            return
-        time.sleep(1)
-
 class TranslateBackendBase:
     def translate(self, s):
         raise NotImplementedError()
@@ -344,7 +320,6 @@ def add_double_quote(data, isBracket):
 
     return en_text
 
-
 def parse_commandline_args():
     # Helper function to get the valid directory path
     def get_valid_data_dir(*paths):
@@ -373,7 +348,6 @@ def parse_commandline_args():
                         help="Enables the use of ctranslate2 instead of fairseq")
     parser.add_argument('--ctranslate2-data-dir', type=str, default=ctranslate2_data_dir,
                         help="Directory to use for ctranslate2 model")
-    parser.add_argument('--minimize', action="store_true", help="Minimize the window at startup")
 
     return parser.parse_args()
 
@@ -383,24 +357,25 @@ def main():
     try:
         args = parse_commandline_args()
 
-        if args.minimize:
-            minimize_window()
+        minimize_window()
 
         from flask import cli
         cli.show_server_banner = lambda *_: None
-
-        parent_process_id = os.getppid()
-        LOG.info(f"Monitoring parent process ID: {parent_process_id}")
-
-        monitor_thread = threading.Thread(target=monitor_parent_process, args=(parent_process_id,), daemon=True)
-        monitor_thread.start()
-
+        
         if not args.ctranslate2:
-            ja2en = FairseqTranslateBackend(args)
+            LOG.info(f"args.ctranslate2 is {args.ctranslate2} (type: {type(args.ctranslate2)})")
+            if not os.path.exists(args.fairseq_data_dir):
+                LOG.warning(f"Fairseq module not found. Using CT2. Checked path: {args.fairseq_data_dir}")
+                ja2en = Ctranslate2TranslateBackend(args)
+            else:
+                try:
+                    ja2en = FairseqTranslateBackend(args)
+                except Exception as e:
+                    LOG.error(f"Error initializing FairseqTranslateBackend: {e}")
+                    ja2en = Ctranslate2TranslateBackend(args)
         else:
             ja2en = Ctranslate2TranslateBackend(args)
 
-        LOG.info(f"Running server on port {args.port}")
         
         app.run(host='127.0.0.1', port=args.port)
     

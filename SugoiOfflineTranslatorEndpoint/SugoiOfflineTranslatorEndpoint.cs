@@ -52,9 +52,6 @@ namespace SugoiOfflineTranslator
         private bool LogServerMessages { get; set; }
 
         private bool EnableCTranslate2 { get; set; }
-
-        private bool HideServerWindow { get; set; }
-
         private string PythonExePath { get; set; }
 
         public override void Initialize(IInitializationContext context)
@@ -72,7 +69,6 @@ namespace SugoiOfflineTranslator
             this.DisableSpamChecks = context.GetOrCreateSetting("SugoiOfflineTranslator", "DisableSpamChecks", true);
             this.LogServerMessages = context.GetOrCreateSetting("SugoiOfflineTranslator", "LogServerMessages", false);
             this.EnableCTranslate2 = context.GetOrCreateSetting("SugoiOfflineTranslator", "EnableCTranslate2", false);
-            this.HideServerWindow = context.GetOrCreateSetting("SugoiOfflineTranslator", "HideServerWindow", false);
 
             if (this.EnableShortDelay)
             {
@@ -153,7 +149,6 @@ namespace SugoiOfflineTranslator
             {
                 string cuda = this.EnableCuda ? "--cuda" : "";
                 string ctranslate = this.EnableCTranslate2 ? "--ctranslate2" : "";
-                string minimize = !this.HideServerWindow ? "--minimize" : "";
 
                 XuaLogger.AutoTranslator.Info($"Running Sugoi Offline Translation server:\n\tExecPath: {this.ServerExecPath}\n\tPythonPath: {this.PythonExePath}\n\tScriptPath: {this.ServerScriptPath}");
 
@@ -161,12 +156,11 @@ namespace SugoiOfflineTranslator
                 this.process.StartInfo = new ProcessStartInfo()
                 {
                     FileName = this.PythonExePath,
-                    Arguments = $"\"{this.ServerScriptPath}\" {this.ServerPort} {cuda} {ctranslate} {minimize}",
+                    Arguments = $"\"{this.ServerScriptPath}\" {this.ServerPort} {cuda} {ctranslate}",
                     WorkingDirectory = this.ServerExecPath,
                     UseShellExecute = false,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
-                    CreateNoWindow = this.HideServerWindow,
                 };
 
                 this.process.OutputDataReceived += this.ServerDataReceivedEventHandler;
