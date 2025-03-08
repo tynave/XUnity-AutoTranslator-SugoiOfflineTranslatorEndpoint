@@ -63,20 +63,6 @@ Run the game. If you set the `InstallPath` setting, do not run the SugoiTranslat
 
 Once the game is running you can press `Alt`+`0` to bring up the XUAT panel to confirm that you've configured the endpoint properly and if it's translating.
 
-
-## Updating
-
-The translator endpoint may be updated by just extracting / overwriting the old plugin based on your installation. Though there may be additional steps based on what version you are upgrading from:
-
-### Versions older than 1.4.0
-
-Versions prior to 1.4.0 had an optional instruction to install XUATHooks. As of XUAT 4.21.0 / endpoint version 1.4.0, this is no longer needed. Remove the old XUATHooks dll when updating, and then set `EnableShortDelay` to `True` in the updated configuration.
-
-### Versions older than 1.2.0
-
-Versions prior to 1.2.0 had instructions to extract SugoiOfflineTranslatorServer.py together with the translator dll. This is no longer needed and removing the old server.py file can be done.
-
-
 ## Configuration
 
 `InstallPath`: The location of your Sugoi Translator install. When set, automatically starts the translation backend internally when you start the game. This must be set to the folder that contains the various `.bat` batch files to start the different translator modes.
