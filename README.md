@@ -1,8 +1,17 @@
 # XUnity-AutoTranslator-SugoiOfflineTranslatorEndpoint
 
+Forked from [Vin-meido/XUnity-AutoTranslator-SugoiOfflineTranslatorEndpoint](https://github.com/Vin-meido/XUnity-AutoTranslator-SugoiOfflineTranslatorEndpoint) v1.4.6
+
+## WARNING
+This fork was mainly created and is maintained to be included in the [Priconne-ReTL](https://github.com/ImaterialC/PriconneRe-TL) project, with keeping compatibility across as many Sugoi Translation Toolkit versions as possible.  
+Might be working with other games, but not tested. Features may also differ from the versions of the original author.  
+If you are looking for the original version, visit the link above.
+
+## Overview
+
 Translation endpoint to support Sugoi Translator's offline translation backend (https://www.youtube.com/watch?v=r8xFzVbmo7k)
 
-Tested to support Sugoi Translation Toolkit V4.0.
+Tested to support Sugoi Translation Toolkit versions up to V11.
 
 The Sugoi Translator's offline model boasts comparability with Deepl translations, not to mention shorter translation delay and nonexistent throttling limits.
 
@@ -43,7 +52,7 @@ FallbackEndpoint=
 
 If you installed the CUDA support, set `EnableCuda` to `True` and increase `MaxBatchSize` to a larger value (e.g. `100`).
 
-If you installed ctranslate2 support, set `EnableCtranslate` to `True`.
+If you installed ctranslate2 support, set `EnableCtranslate` to `True`. Note: Sugoi V8 and newer use CT2 by default, so set it to True for those versions.
 
 Optionally, if you want the translations to reflect faster, set `EnableShortDelay` to `True`. There's a bunch more configuration options you can set (refer to the configuration section for details on what they do)
 
