@@ -115,7 +115,7 @@ class Ctranslate2TranslateBackend(TranslateBackendBase):
 
         LOG.info(f"CTranslate2 data dir:{settings.ctranslate2_data_dir}")
 
-        # Helper function to find a valid model path
+        '''# Helper function to find a valid model path
         def get_valid_model_path(*paths):
             for path in paths:
                 if os.path.exists(path):
@@ -145,7 +145,12 @@ class Ctranslate2TranslateBackend(TranslateBackendBase):
         else:
             self.source_spm = None
             self.target_spm = None
-            LOG.warning("Translation models were not initialized because valid paths were not found.")
+            LOG.warning("Translation models were not initialized because valid paths were not found.")'''
+
+        spm_model_dir = os.path.join(settings.ctranslate2_data_dir, '..', 'spmModels')
+
+        self.source_spm = spm.SentencePieceProcessor(os.path.join(spm_model_dir, "spm.ja.nopretok.model"))
+        self.target_spm = spm.SentencePieceProcessor(os.path.join(spm_model_dir, "spm.en.nopretok.model"))
 
         # Set up the translator
         device = "cuda" if settings.cuda else "cpu"
@@ -332,11 +337,11 @@ def parse_commandline_args():
         return None
 
     # Check for valid ctranslate2 data directory
-    ctranslate2_data_dir = get_valid_data_dir(
-        "./ct2/ct2_models/",
-        "./models/ct2Model/",
-        "./ct2Model/"
-    )
+    # ctranslate2_data_dir = get_valid_data_dir(
+    #    "./ct2/ct2_models/",
+    #    "./models/ct2Model/",
+    #    "./ct2Model/"
+    #)
 
     # Set up the argument parser
     parser = argparse.ArgumentParser(description="SugoiOfflineTranslator backend server")
@@ -349,7 +354,9 @@ def parse_commandline_args():
                         help="Run translations on the GPU via CUDA")
     parser.add_argument('--ctranslate2', action="store_true",
                         help="Enables the use of ctranslate2 instead of fairseq")
-    parser.add_argument('--ctranslate2-data-dir', type=str, default=ctranslate2_data_dir,
+    #parser.add_argument('--ctranslate2-data-dir', type=str, default=ctranslate2_data_dir,
+    #                    help="Directory to use for ctranslate2 model")
+    parser.add_argument('--ctranslate2-data-dir', type=str, default=None,
                         help="Directory to use for ctranslate2 model")
 
     return parser.parse_args()
@@ -365,21 +372,30 @@ def main():
         from flask import cli
         cli.show_server_banner = lambda *_: None
         
-        if not args.ctranslate2:
-            LOG.info(f"args.ctranslate2 is {args.ctranslate2} (type: {type(args.ctranslate2)})")
-            if not os.path.exists(args.fairseq_data_dir):
-                LOG.warning(f"Fairseq module not found. Using CT2. Checked path: {args.fairseq_data_dir}")
-                ja2en = Ctranslate2TranslateBackend(args)
-            else:
-                try:
-                    ja2en = FairseqTranslateBackend(args)
-                except Exception as e:
-                    LOG.error(f"Error initializing FairseqTranslateBackend: {e}")
-                    ja2en = Ctranslate2TranslateBackend(args)
-        else:
-            ja2en = Ctranslate2TranslateBackend(args)
+        #if not args.ctranslate2:
+            # LOG.info(f"args.ctranslate2 is {args.ctranslate2} (type: {type(args.ctranslate2)})")
+        #    if not os.path.exists(args.fairseq_data_dir):
+        #        LOG.warning(f"Fairseq module not found. Using CT2. Checked path: {args.fairseq_data_dir}")
+        #        ja2en = Ctranslate2TranslateBackend(args)
+        #    else:
+        #        try:
+        #            ja2en = FairseqTranslateBackend(args)
+        #        except Exception as e:
+        #            LOG.error(f"Error initializing FairseqTranslateBackend: {e}")
+        #            ja2en = Ctranslate2TranslateBackend(args)
+        #else:
+        #    ja2en = Ctranslate2TranslateBackend(args)
 
-        
+        if args.ctranslate2:
+            if args.ctranslate2_data_dir is None:
+                LOG.error(f"Unable to find valid model data under {os.getcwd()}")
+                sys.exit(2)
+            else:
+                ja2en = Ctranslate2TranslateBackend(args)
+        else:
+            ja2en = FairseqTranslateBackend(args)
+
+
         app.run(host='127.0.0.1', port=args.port)
     
     except ValueError as e:
