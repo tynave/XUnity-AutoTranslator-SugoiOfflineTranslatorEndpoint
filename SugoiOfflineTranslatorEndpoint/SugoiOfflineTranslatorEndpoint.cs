@@ -139,11 +139,26 @@ namespace SugoiOfflineTranslator
             if (!string.IsNullOrEmpty(this.Ct2ModelPath)) XuaLogger.AutoTranslator.Info($"[Sugoi Offline Translator] CT2 Model Path: {this.Ct2ModelPath}");
 
             string fairseqModelPath = Path.Combine(this.ServerExecPath, "fairseq");
-            if (!string.IsNullOrEmpty(fairseqModelPath)) XuaLogger.AutoTranslator.Info($"[Sugoi Offline Translator] Fairseq model path: {fairseqModelPath}");
+            string fairseqModelFile = Path.Combine(fairseqModelPath, "japaneseModel\\big.pretrain.pt");
+            string fairseqSPMFile = Path.Combine(fairseqModelPath, "spmModels\\spm.ja.nopretok.model");
+
+            if (!string.IsNullOrEmpty(fairseqModelPath))
+            {
+                XuaLogger.AutoTranslator.Info($"[Sugoi Offline Translator] Fairseq model path: {fairseqModelPath}\n" +
+                    $"Model File found: {File.Exists(fairseqModelFile)}\n" +
+                    $"SPM file found: {File.Exists(fairseqSPMFile)}");
+
+            }
+            if (string.IsNullOrEmpty(this.Ct2ModelPath) && (!File.Exists(fairseqModelPath) || !File.Exists(fairseqSPMFile)))
+            {
+                MessageBox.Show("Failed to start Sugoi Offline Translator Server!\n\nUnable to find any translation models!" +
+                    "\n\nCheck your Sugoi Toolkit Installation!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw new Exception("[Sugoi Offline Translator] Unable to find any model files!");
+            }
 
             if (EnableCTranslate2 && string.IsNullOrEmpty(this.Ct2ModelPath))
             {
-                if (Directory.Exists(fairseqModelPath))
+                if (File.Exists(fairseqModelFile) && File.Exists(fairseqSPMFile))
                 {
                     MessageBox.Show("[Sugoi Offline Translator Plugin]\n\nWarning!\n\nCTranslate2 model not found!" +
                     "\n\nFalling back to the Fairseq model!", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -153,9 +168,9 @@ namespace SugoiOfflineTranslator
                 }
             }
 
-            if (!EnableCTranslate2 && !Directory.Exists(fairseqModelPath))
+            if (!EnableCTranslate2 && (!File.Exists(fairseqModelPath) || !File.Exists(fairseqSPMFile))) ;
             {
-                 MessageBox.Show("[Sugoi Offline Translator Plugin]\n\nWarning!\n\nFairseq model not found!" +
+                 MessageBox.Show("[Sugoi Offline Translator Plugin]\n\nWarning!\n\nFairseq model not found or incomplete!" +
                  "\n\nEnabling Ctranslate2 model!", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                  context.SetSetting("SugoiOfflineTranslator", "EnableCTranslate2", true);
                  this.EnableCTranslate2 = true;
@@ -196,7 +211,12 @@ namespace SugoiOfflineTranslator
                 string ctranslate = this.EnableCTranslate2 ? "--ctranslate2" : "";
                 string ct2_model_path = this.EnableCTranslate2 ? $"--ctranslate2-data-dir {this.Ct2ModelPath}" : "";
 
-                XuaLogger.AutoTranslator.Info($"Running Sugoi Offline Translation server:\n\tExecPath: {this.ServerExecPath}\n\tPythonPath: {this.PythonExePath}\n\tScriptPath: {this.ServerScriptPath}");
+                XuaLogger.AutoTranslator.Info($"Running Sugoi Offline Translation server:\n\t" +
+                    $"ExecPath: {this.ServerExecPath}\n\t" +
+                    $"PythonPath: {this.PythonExePath}\n\t" +
+                    $"ScriptPath: {this.ServerScriptPath}\n\t" +
+                    $"Translation Model: {(this.EnableCTranslate2 ? "CT2" : "Fairseq")}\n\t" +
+                    $"CUDA: {(this.EnableCuda ? "Enabled" : "Disabled")}");
 
                 this.process = new Process();
                 this.process.StartInfo = new ProcessStartInfo()

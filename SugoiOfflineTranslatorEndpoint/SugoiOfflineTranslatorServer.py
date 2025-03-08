@@ -74,8 +74,8 @@ class FairseqTranslateBackend(TranslateBackendBase):
         LOG.info("Setting up fairseq translation backend..")
 
         # Add logging to verify the values of the paths
-        LOG.info(f"Fairseq data dir: {settings.fairseq_data_dir}")
-        LOG.info(f"Fairseq model file: {settings.fairseq_model}")
+        # LOG.info(f"Fairseq data dir: {settings.fairseq_data_dir}")
+        # LOG.info(f"Fairseq model file: {settings.fairseq_model}")
 
         # Check for None values in the paths and raise an error if found
         if settings.fairseq_data_dir is None or settings.fairseq_model is None:
@@ -113,7 +113,7 @@ class Ctranslate2TranslateBackend(TranslateBackendBase):
         import sentencepiece as spm
         import ctranslate2
 
-        LOG.info(f"CTranslate2 data dir:{settings.ctranslate2_data_dir}")
+        # LOG.info(f"CTranslate2 data dir:{settings.ctranslate2_data_dir}")
 
         '''# Helper function to find a valid model path
         def get_valid_model_path(*paths):
@@ -388,7 +388,7 @@ def main():
 
         if args.ctranslate2:
             if args.ctranslate2_data_dir is None:
-                LOG.error(f"Unable to find valid model data under {os.getcwd()}")
+                LOG.error(f"Model data directory not set! Exiting...")
                 sys.exit(2)
             else:
                 ja2en = Ctranslate2TranslateBackend(args)
