@@ -73,10 +73,6 @@ class FairseqTranslateBackend(TranslateBackendBase):
     def __init__(self, settings):
         LOG.info("Setting up fairseq translation backend..")
 
-        # Add logging to verify the values of the paths
-        # LOG.info(f"Fairseq data dir: {settings.fairseq_data_dir}")
-        # LOG.info(f"Fairseq model file: {settings.fairseq_model}")
-
         # Check for None values in the paths and raise an error if found
         if settings.fairseq_data_dir is None or settings.fairseq_model is None:
             raise ValueError("fairseq_data_dir and fairseq_model must be valid paths, not None.")
@@ -100,7 +96,7 @@ class FairseqTranslateBackend(TranslateBackendBase):
         )
         
         if settings.cuda:
-            LOG.info("CUDA Enabled!")
+            # LOG.info("CUDA Enabled!")
             self.transformer.cuda()
 
     def translate(self, s):
@@ -113,40 +109,6 @@ class Ctranslate2TranslateBackend(TranslateBackendBase):
         import sentencepiece as spm
         import ctranslate2
 
-        # LOG.info(f"CTranslate2 data dir:{settings.ctranslate2_data_dir}")
-
-        '''# Helper function to find a valid model path
-        def get_valid_model_path(*paths):
-            for path in paths:
-                if os.path.exists(path):
-                    return path
-            LOG.warning(f"None of the specified paths exist: {paths}. CT2 model not installed.")
-            return None
-
-        # Use the function to determine the valid paths for source and target models
-        source_model_path = get_valid_model_path(
-            "./ct2/spmModels/spm.ja.nopretok.model",
-            "./models/spmModels/spm.ja.nopretok.model",
-            "./spmModels/spm.ja.nopretok.model"
-        )
-
-        target_model_path = get_valid_model_path(
-            "./ct2/spmModels/spm.en.nopretok.model",
-            "./models/spmModels/spm.en.nopretok.model",
-            "./spmModels/spm.en.nopretok.model"
-        )
-
-        # Initialize SentencePieceProcessor only if valid paths are found
-        if source_model_path and target_model_path:
-            self.source_spm = spm.SentencePieceProcessor(source_model_path)
-            self.target_spm = spm.SentencePieceProcessor(target_model_path)
-            LOG.info(f"Source spm model file: {source_model_path}")
-            LOG.info(f"Target spm model file: {target_model_path}")
-        else:
-            self.source_spm = None
-            self.target_spm = None
-            LOG.warning("Translation models were not initialized because valid paths were not found.")'''
-
         spm_model_dir = os.path.join(settings.ctranslate2_data_dir, '..', 'spmModels')
 
         self.source_spm = spm.SentencePieceProcessor(os.path.join(spm_model_dir, "spm.ja.nopretok.model"))
@@ -158,12 +120,6 @@ class Ctranslate2TranslateBackend(TranslateBackendBase):
             model_path=settings.ctranslate2_data_dir,
             device=device
         )
-
-        # Log a message if CUDA is enabled
-        if device == "cuda":
-            LOG.info("CT2 translation device: GPU (CUDA enabled)")
-        else:
-            LOG.info("CT2 translation device: CPU")
 
     def translate(self, s):
         # Ensure that the SentencePieceProcessor is initialized before attempting to translate
@@ -328,20 +284,6 @@ def add_double_quote(data, isBracket):
     return en_text
 
 def parse_commandline_args():
-    # Helper function to get the valid directory path
-    def get_valid_data_dir(*paths):
-        for path in paths:
-            if os.path.exists(path) and os.path.isdir(path):
-                return path
-        LOG.warning(f"None of the specified paths exist: {paths}. CT2 model not installed.")
-        return None
-
-    # Check for valid ctranslate2 data directory
-    # ctranslate2_data_dir = get_valid_data_dir(
-    #    "./ct2/ct2_models/",
-    #    "./models/ct2Model/",
-    #    "./ct2Model/"
-    #)
 
     # Set up the argument parser
     parser = argparse.ArgumentParser(description="SugoiOfflineTranslator backend server")
@@ -354,8 +296,6 @@ def parse_commandline_args():
                         help="Run translations on the GPU via CUDA")
     parser.add_argument('--ctranslate2', action="store_true",
                         help="Enables the use of ctranslate2 instead of fairseq")
-    #parser.add_argument('--ctranslate2-data-dir', type=str, default=ctranslate2_data_dir,
-    #                    help="Directory to use for ctranslate2 model")
     parser.add_argument('--ctranslate2-data-dir', type=str, default=None,
                         help="Directory to use for ctranslate2 model")
 
@@ -372,20 +312,6 @@ def main():
         from flask import cli
         cli.show_server_banner = lambda *_: None
         
-        #if not args.ctranslate2:
-            # LOG.info(f"args.ctranslate2 is {args.ctranslate2} (type: {type(args.ctranslate2)})")
-        #    if not os.path.exists(args.fairseq_data_dir):
-        #        LOG.warning(f"Fairseq module not found. Using CT2. Checked path: {args.fairseq_data_dir}")
-        #        ja2en = Ctranslate2TranslateBackend(args)
-        #    else:
-        #        try:
-        #            ja2en = FairseqTranslateBackend(args)
-        #        except Exception as e:
-        #            LOG.error(f"Error initializing FairseqTranslateBackend: {e}")
-        #            ja2en = Ctranslate2TranslateBackend(args)
-        #else:
-        #    ja2en = Ctranslate2TranslateBackend(args)
-
         if args.ctranslate2:
             if args.ctranslate2_data_dir is None:
                 LOG.error(f"Model data directory not set! Exiting...")
