@@ -11,7 +11,7 @@ If you are looking for the original version, visit the link above.
 
 Translation endpoint to support Sugoi Translator's offline translation backend (https://www.youtube.com/watch?v=r8xFzVbmo7k)
 
-Tested to support Sugoi Translation Toolkit versions up to V11.
+Tested to support Sugoi Translation Toolkit versions up to V12.
 
 The Sugoi Translator's offline model boasts comparability with Deepl translations, not to mention shorter translation delay and nonexistent throttling limits.
 
@@ -82,3 +82,5 @@ Once the game is running you can press `Alt`+`0` to bring up the XUAT panel to c
 `EnableShortDelay`: Reduces the 0.9s delay used by XUAT to throttle translation requests. This results in making the translations reflect faster (if your pc can handle it). If your game has scrolling text (e.g. dialog/message windows), make sure to set them to as fast as possible to avoid sending multiple requests for partial text. Disable this if you are having issues with fast scrolling / changing text.
 
 `DisableSpamChecks`: Disables the general spam checks associated with online translators (since this is an offline backend, we don't necessarily need it). If your pc cannot handle too many translations requests, you can disable this, but the default should be fine for most setups.
+
+`HideServerWindow`: (1.6.0 and up) Hides the empty python server window instead of minimizing. Warning: this makes you lose control over the server process, so in case of a game crash, the server might keep running unnoticed, kepp this in mind and kill the server process manually in this case.
