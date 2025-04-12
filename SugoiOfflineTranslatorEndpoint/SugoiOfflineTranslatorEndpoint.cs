@@ -215,7 +215,7 @@ namespace SugoiOfflineTranslator
             {
                 string cuda = this.EnableCuda ? "--cuda" : "";
                 string ctranslate = this.EnableCTranslate2 ? "--ctranslate2" : "";
-                string ct2_model_path = this.EnableCTranslate2 ? $"--ctranslate2-data-dir {this.Ct2ModelPath}" : "";
+                string ct2_model_path = this.EnableCTranslate2 ? $"--ctranslate2-data-dir \"{this.Ct2ModelPath}\"" : "";
 
                 XuaLogger.AutoTranslator.Info($"Running Sugoi Offline Translation server:\n\t" +
                     $"ExecPath: {this.ServerExecPath}\n\t" +
